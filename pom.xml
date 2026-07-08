@@ -1,33 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>4.1.0</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.neverwhere</groupId>
 	<artifactId>cautious-carnival</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
 	<properties>
 		<java.version>25</java.version>
+		<springdoc.version>3.0.3</springdoc.version>
+		<openapi-generator-maven-plugin.version>7.23.0</openapi-generator-maven-plugin.version>
+		<openapi-generated-code-package>
+			com.neverwhere.cautious_carnival.rest.generated</openapi-generated-code-package>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -37,6 +27,11 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>${springdoc.version}</version>
 		</dependency>
 
 		<dependency>
@@ -106,6 +101,67 @@
 									<artifactId>lombok</artifactId>
 								</path>
 							</annotationProcessorPaths>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.openapitools</groupId>
+				<artifactId>openapi-generator-maven-plugin</artifactId>
+				<version>${openapi-generator-maven-plugin.version}</version>
+				<executions>
+					<execution>
+						<id>generate-server-code</id>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/main/resources/openapi.yaml</inputSpec>
+							<generatorName>spring</generatorName>
+							<apiPackage>${openapi-generated-code-package}.controller</apiPackage>
+							<modelPackage>${openapi-generated-code-package}.dto</modelPackage>
+							<supportingFilesToGenerate>ApiUtil.java</supportingFilesToGenerate>
+							<modelNameSuffix>Dto</modelNameSuffix>
+							<apiNameSuffix>Controller</apiNameSuffix>
+							<configOptions>
+								<interfaceOnly>true</interfaceOnly>
+								<useSpringBoot3>true</useSpringBoot3>
+								<useJakartaEe>true</useJakartaEe>
+								<useTags>true</useTags>
+								<skipDefaultInterface>true</skipDefaultInterface>
+								<delegatePattern>false</delegatePattern>
+								<openApiNullable>false</openApiNullable>
+								<generateBuilders>true</generateBuilders>
+								<useSpringController>true</useSpringController>
+							</configOptions>
+						</configuration>
+					</execution>
+					<execution>
+						<id>generate-test-client-code</id>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/main/resources/openapi.yaml</inputSpec>
+							<generatorName>java</generatorName>
+							<library>restclient</library>
+							<output>${project.build.directory}/generated-test-sources/openapi</output>
+							<apiPackage>${openapi-generated-code-package}.test_client</apiPackage>
+							<modelPackage>${openapi-generated-code-package}.test_client.dto</modelPackage>
+							<invokerPackage>
+								${openapi-generated-code-package}.test_client.invoker</invokerPackage>
+							<modelNameSuffix>TestClientDto</modelNameSuffix>
+							<apiNameSuffix>TestClientApi</apiNameSuffix>
+							<skipValidateSpec>false</skipValidateSpec>
+							<generateSupportingFiles>true</generateSupportingFiles>
+							<configOptions>
+								<useSpringBoot3>true</useSpringBoot3>
+								<useJakartaEe>true</useJakartaEe>
+								<useTags>true</useTags>
+								<generateBuilders>true</generateBuilders>
+								<useOptional>false</useOptional>
+								<openApiNullable>false</openApiNullable>
+							</configOptions>
 						</configuration>
 					</execution>
 				</executions>
