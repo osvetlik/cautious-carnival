@@ -1,0 +1,90 @@
+openapi: 3.1.1
+info:
+  title: Routing API
+  version: 0.0.1
+
+tags:
+- name: routing
+  description: Routing related operations
+
+paths:
+  /routing/{origin}/{destination}:
+    get:
+      tags: [routing]
+      operationId: findRoute
+      description: Finds a single shortest route between the origin and the destination
+      parameters:
+      - $ref: '#/components/parameters/OriginPathParam'
+      - $ref: '#/components/parameters/DestinationPathParam'
+      responses:
+        200:
+          $ref: '#/components/responses/FindRouteOkResponse'
+        400:
+          $ref: '#/components/responses/NoRouteResponse'
+        404:
+          $ref: '#/components/responses/CountryNotFoundResponse'
+
+components:
+  parameters:
+    OriginPathParam:
+      name: origin
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CountryCode'
+    DestinationPathParam:
+      name: destination
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CountryCode'
+
+  responses:
+    CountryNotFoundResponse:
+      description: At least one of the requested countries was not found in the database.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    FindRouteOkResponse:
+      description: A list of countries, including the origin and destination, the land route goes through.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Route'
+    NoRouteResponse:
+      description: No land route was found.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+
+  schemas:
+    CountryCode:
+      type: string
+      pattern: '^[A-Z]{3}$'
+      description: ISO 3166-1 alpha-3 country code.
+      example: CZE
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+    Route:
+      type: object
+      required: [route]
+      properties:
+        route:
+          $ref: '#/components/schemas/RouteItems'
+    RouteItems:
+      type: array
+      items:
+        $ref: '#/components/schemas/CountryCode'
