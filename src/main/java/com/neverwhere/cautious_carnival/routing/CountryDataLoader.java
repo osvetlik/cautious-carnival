@@ -3,6 +3,7 @@ package com.neverwhere.cautious_carnival.routing;
 import java.io.IOException;
 import java.net.URL;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -40,7 +41,9 @@ class CountryDataLoader {
 			routingDataHolder.setRoutingData(routingData);
 		}
 		catch (Exception e) {
+			// TODO: terminate on certain exceptions, sometimes we know retries won't help.
 			log.warn("Cannot load data, retry in {}", DATA_LOAD_RETRY_PERIOD, e);
+			taskScheduler.schedule(this::tryLoading, Instant.now().plus(DATA_LOAD_RETRY_PERIOD));
 		}
 	}
 
