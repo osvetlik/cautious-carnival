@@ -1,3 +1,26 @@
 spring:
   application:
     name: cautious-carnival
+app:
+  data:
+    data-source-type: ${APP_DATA_SOURCE_TYPE:classpath}
+    external: ${APP_DATA_EXTERNAL:https://raw.githubusercontent.com/mledoze/countries/master/countries.json}
+    classpath: ${APP_DATA_CLASSPATH:countries.json}
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+        - health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include:
+          - livenessState
+        readiness:
+          include:
+          - readinessState
+          - routingData

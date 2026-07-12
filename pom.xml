@@ -16,8 +16,7 @@
 		<java.version>25</java.version>
 		<springdoc.version>3.0.3</springdoc.version>
 		<openapi-generator-maven-plugin.version>7.23.0</openapi-generator-maven-plugin.version>
-		<openapi-generated-code-package>
-			com.neverwhere.cautious_carnival.rest.generated</openapi-generated-code-package>
+		<openapi-generated-code-package>com.neverwhere.cautious_carnival.rest.generated</openapi-generated-code-package>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -48,6 +47,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-configuration-processor</artifactId>
+				<optional>true</optional>
 		</dependency>
 	</dependencies>
 
@@ -148,8 +152,7 @@
 							<output>${project.build.directory}/generated-test-sources/openapi</output>
 							<apiPackage>${openapi-generated-code-package}.test_client</apiPackage>
 							<modelPackage>${openapi-generated-code-package}.test_client.dto</modelPackage>
-							<invokerPackage>
-								${openapi-generated-code-package}.test_client.invoker</invokerPackage>
+							<invokerPackage>${openapi-generated-code-package}.test_client.invoker</invokerPackage>
 							<modelNameSuffix>TestClientDto</modelNameSuffix>
 							<apiNameSuffix>TestClientApi</apiNameSuffix>
 							<skipValidateSpec>false</skipValidateSpec>
