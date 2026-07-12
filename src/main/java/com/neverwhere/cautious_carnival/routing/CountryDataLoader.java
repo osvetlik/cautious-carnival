@@ -4,7 +4,14 @@ import java.io.IOException;
 import java.net.URL;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -39,6 +46,9 @@ class CountryDataLoader {
 		try {
 			final var routingData = loadRoutingData();
 			routingDataHolder.setRoutingData(routingData);
+			log.info("Sanity check: BRA -> {}", routingData.get("BRA"));
+			log.info("Sanity check: NOR -> ITA: {}", routingData.get("NOR").get("ITA"));
+			log.info("Sanity check: NOR -> VNM: {}", routingData.get("NOR").get("VNM"));
 		}
 		catch (Exception e) {
 			// TODO: terminate on certain exceptions, sometimes we know retries won't help.
@@ -47,17 +57,73 @@ class CountryDataLoader {
 		}
 	}
 
-	private RoutingData loadRoutingData() throws IOException {
+	private Map<String, Map<String, String>> loadRoutingData() throws IOException {
 		final var dataSourceUrl = selectDataSource();
 
 		try (final var inputStream = dataSourceUrl.openStream()) {
 			final var loaded = jsonMapper.readValue(inputStream, new TypeReference<List<CountryJson>>() {});
 			log.info("Loaded:\n{}", loaded);
-			return new RoutingData();
+			return parseRoutingData(loaded);
 		}
 
 	}
 
+	private Map<String, Map<String, String>> parseRoutingData(List<CountryJson> countryJsonList) {
+		final var workingDataMap = countryJsonList.stream()
+				.collect(Collectors.toMap(CountryJson::cca3, this::initCountryEntry));
+		final var remainingCountries = new ArrayList<>(workingDataMap.keySet());
+
+		boolean firstPass = true;
+
+		while (!remainingCountries.isEmpty()) {
+			final var noNewHops = remainingCountries.stream()
+					.filter(me -> !processAllNeighbors(me, workingDataMap))
+					.toList();
+			if (!firstPass) {
+				remainingCountries.removeAll(noNewHops);
+				log.info("Removing {}, remaining: {}", noNewHops, remainingCountries);
+			}
+			else {
+				firstPass = false;
+				log.info("First pass, not removing any countries yet, remaining: {}", remainingCountries);
+			}
+		}
+
+		return workingDataMap;
+	}
+
+
+	private boolean processAllNeighbors(String me, Map<String, Map<String, String>> routingData) {
+		final var myHops = routingData.get(me);
+		final var neighbors = new HashSet<>(routingData.get(me).values());
+		log.info("Processing neighbors {} for {}", neighbors, me);
+		return neighbors.stream()
+				.filter(Predicate.not(me::equals))
+				.map(neighbor -> addNeighborsHops(myHops, neighbor, routingData.get(neighbor)))
+				.reduce(false, (a, b) -> a || b);
+	}
+
+	private boolean addNeighborsHops(Map<String, String> myHops, String neighbor,
+			Map<String, String> neighborsHops) {
+		final var newHops = neighborsHops.keySet().stream()
+				.filter(Predicate.not(myHops::containsKey))
+				.collect(Collectors.toSet());
+		if (newHops.isEmpty()) {
+			return false;
+		}
+		log.info("Adding new hops {}", newHops);
+		myHops.putAll(newHops.stream().collect(Collectors.toMap(Function.identity(), _ -> neighbor)));
+		return true;
+	}
+
+	private Map<String, String> initCountryEntry(CountryJson countryJson) {
+		final var countryEntry = new HashMap<String, String>();
+		final var me = countryJson.cca3();
+		countryEntry.put(me, me);
+		countryEntry.putAll(
+				countryJson.borders().stream().collect(Collectors.toMap(Function.identity(), Function.identity())));
+		return countryEntry;
+	}
 	private URL selectDataSource() {
 		if (appConfigurationProperties.data().dataSourceType() == DataSourceType.CLASSPATH) {
 			return this.getClass().getClassLoader().getResource(appConfigurationProperties.data().classpath());
