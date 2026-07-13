@@ -150,6 +150,7 @@ class CountryDataLoader {
 				.collect(Collectors.toMap(Function.identity(), neighbor -> new Hop(neighbor, 1))));
 		return countryEntry;
 	}
+
 	private URL selectDataSource() {
 		if (appConfigurationProperties.data().dataSourceType() == DataSourceType.CLASSPATH) {
 			return this.getClass().getClassLoader().getResource(appConfigurationProperties.data().classpath());
