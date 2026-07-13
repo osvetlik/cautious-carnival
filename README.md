@@ -3,9 +3,17 @@ Challenge project.
 
 ## How To Run
 
+### Latest
 ```bash
 docker run --rm -p8080:8080 ghcr.io/osvetlik/cautious-carnival:latest
 ```
+
+### Specific tag (`v1.0.0`)
+```bash
+docker run --rm -p8080:8080 ghcr.io/osvetlik/cautious-carnival:v1.0.0
+```
+
+### Configuration
 
 Environment variables:
 * `APP_DATA_SOURCE_TYPE` - default `classpath`
@@ -13,6 +21,12 @@ Environment variables:
     - `external` - use the external data source (file://, https://, ...)
 * `APP_DATA_EXTERNAL` - default `https://raw.githubusercontent.com/mledoze/countries/master/countries.json`
 * `APP_DATA_CLASSPATH` - default `countries.json`
+
+To run against the provided external source, try:
+
+```bash
+docker run --rm -p8080:8080 -eAPP_DATA_SOURCE_TYPE=external ghcr.io/osvetlik/cautious-carnival:latest
+```
 
 ## Probes
 
