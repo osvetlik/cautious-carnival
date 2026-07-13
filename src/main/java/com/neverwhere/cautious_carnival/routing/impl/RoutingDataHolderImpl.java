@@ -24,4 +24,13 @@ public class RoutingDataHolderImpl implements RoutingDataHolder {
 		}
 	}
 
+	@Override
+	public Map<String, Map<String, String>> getRoutingData() {
+		final var routingData = routingDataRef.get();
+		if (routingData == null) {
+			throw new IllegalStateException("Routing data is not yet loaded.");
+		}
+		return routingData;
+	}
+
 }

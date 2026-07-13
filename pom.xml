@@ -136,7 +136,7 @@
 								<delegatePattern>false</delegatePattern>
 								<openApiNullable>false</openApiNullable>
 								<generateBuilders>true</generateBuilders>
-								<useSpringController>true</useSpringController>
+								<useSpringController>false</useSpringController>
 							</configOptions>
 						</configuration>
 					</execution>
