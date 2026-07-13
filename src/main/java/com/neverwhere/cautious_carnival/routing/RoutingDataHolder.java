@@ -6,5 +6,6 @@ public interface RoutingDataHolder {
 
 	boolean ready();
 	void setRoutingData(Map<String, Map<String, String>> routingData);
+	Map<String, Map<String, String>> getRoutingData();
 
 }
