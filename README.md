@@ -3,7 +3,9 @@ Challenge project.
 
 ## How To Run
 
+```bash
 docker run --rm -p8080:8080 ghcr.io/osvetlik/cautious-carnival:latest
+```
 
 Environment variables:
 * `APP_DATA_SOURCE_TYPE` - default `classpath`
