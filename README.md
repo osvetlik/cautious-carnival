@@ -14,6 +14,20 @@ Environment variables:
 * `APP_DATA_EXTERNAL` - default `https://raw.githubusercontent.com/mledoze/countries/master/countries.json`
 * `APP_DATA_CLASSPATH` - default `countries.json`
 
+## Probes
+
+### Liveness
+http://localhost:8080/actuator/health/liveness
+
+Standard Spring Boot liveness probe, no extras.
+
+### Readiness
+http://localhost:8080/actuator/health/readiness
+
+Standard Spring Boot readiness probe with the addition of routing data preparation. They are
+loaded and parsed after the app starts. In case of a remote data source load failure, the app
+keeps running, probing the data source periodically, liveness *UP*, readiness *OUT_OF_SERVICE*.
+
 ## Used algorithm
 
 Considering the size and effective immutability of the domain data, I decided to forgo a route search
