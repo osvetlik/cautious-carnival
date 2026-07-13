@@ -6,7 +6,7 @@ RUN mvn clean package
 
 FROM eclipse-temurin:25-jre-noble AS run
 WORKDIR /app
-COPY --from=build /src/target/*.jar /app/
+COPY --from=build /src/target/cautious-carnival*.jar /app/app.jar
 RUN groupadd --system app \
  && useradd --system \
             --gid app \
