@@ -6,7 +6,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -34,6 +33,8 @@ class CountryDataLoader {
 
 	private static final Duration DATA_LOAD_RETRY_PERIOD = Duration.parse("PT10S");
 
+	private static record Hop(String code, int distance) {}
+
 	private final TaskScheduler taskScheduler;
 	private final RoutingDataHolder routingDataHolder;
 	private final AppConfigurationProperties appConfigurationProperties;
@@ -47,7 +48,12 @@ class CountryDataLoader {
 			final var routingData = loadRoutingData();
 			routingDataHolder.setRoutingData(routingData);
 			log.info("Sanity check: BRA -> {}", routingData.get("BRA"));
+			log.info("Sanity check: CZE -> {}", routingData.get("CZE"));
 			log.info("Sanity check: NOR -> ITA: {}", routingData.get("NOR").get("ITA"));
+			log.info("Sanity check: RUS -> ITA: {}", routingData.get("RUS").get("ITA"));
+			log.info("Sanity check: POL -> ITA: {}", routingData.get("POL").get("ITA"));
+			log.info("Sanity check: DEU -> ITA: {}", routingData.get("DEU").get("ITA"));
+			log.info("Sanity check: AUT -> ITA: {}", routingData.get("AUT").get("ITA"));
 			log.info("Sanity check: NOR -> VNM: {}", routingData.get("NOR").get("VNM"));
 		}
 		catch (Exception e) {
@@ -89,39 +95,59 @@ class CountryDataLoader {
 			}
 		}
 
-		return workingDataMap;
+		return workingDataMap.entrySet().stream().collect(
+				Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().entrySet().stream().collect(Collectors
+						.toMap(Map.Entry::getKey, hopEntry -> hopEntry.getValue().code()))));
 	}
 
 
-	private boolean processAllNeighbors(String me, Map<String, Map<String, String>> routingData) {
+	private boolean processAllNeighbors(String me, Map<String, Map<String, Hop>> routingData) {
 		final var myHops = routingData.get(me);
-		final var neighbors = new HashSet<>(routingData.get(me).values());
-		log.info("Processing neighbors {} for {}", neighbors, me);
-		return neighbors.stream()
+		final var neighbors = myHops.values().stream()
+				.map(Hop::code)
 				.filter(Predicate.not(me::equals))
-				.map(neighbor -> addNeighborsHops(myHops, neighbor, routingData.get(neighbor)))
+				.collect(Collectors.toSet());
+		log.info("Processing my: {}\nneighbors {} ", me, neighbors);
+		return neighbors.stream()
+				.map(neighbor -> addNeighborsHops(me, myHops, neighbor, routingData.get(neighbor)))
 				.reduce(false, (a, b) -> a || b);
 	}
 
-	private boolean addNeighborsHops(Map<String, String> myHops, String neighbor,
-			Map<String, String> neighborsHops) {
-		final var newHops = neighborsHops.keySet().stream()
-				.filter(Predicate.not(myHops::containsKey))
+	private boolean addNeighborsHops(String me, Map<String, Hop> myHops, String neighbor,
+			Map<String, Hop> neighborsHops) {
+		log.info("Testing my hops\n{}\nagainst neighbor {} hops\n{}", myHops, neighbor, neighborsHops);
+		final var newHops = neighborsHops.entrySet().stream()
+				.filter(newHopEntry -> !neighbor.equals(newHopEntry.getKey()))
+				.filter(newHopEntry -> !me.equals(newHopEntry.getKey()))
+				.filter(newHopEntry -> isBetterHop(myHops, newHopEntry))
 				.collect(Collectors.toSet());
 		if (newHops.isEmpty()) {
 			return false;
 		}
-		log.info("Adding new hops {}", newHops);
-		myHops.putAll(newHops.stream().collect(Collectors.toMap(Function.identity(), _ -> neighbor)));
+		final var bestHops = newHops.stream()
+				.collect(
+						Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a.distance() < b.distance() ? a : b));
+		log.info("Adding new hops {}", bestHops);
+		bestHops.entrySet().forEach(e -> myHops.put(e.getKey(), new Hop(neighbor, e.getValue().distance() + 1)));
 		return true;
 	}
 
-	private Map<String, String> initCountryEntry(CountryJson countryJson) {
-		final var countryEntry = new HashMap<String, String>();
+	private boolean isBetterHop(Map<String, Hop> myHops, Map.Entry<String, Hop> neighborHopEntry) {
+		final var newHop = neighborHopEntry.getValue();
+		final var existingHop = myHops.get(neighborHopEntry.getKey());
+		log.info("Comparing new {} hop {} with mine {}", neighborHopEntry.getKey(), newHop, existingHop);
+		if (existingHop == null) {
+			return true;
+		}
+		return (newHop.distance() + 1) < existingHop.distance();
+	}
+
+	private Map<String, Hop> initCountryEntry(CountryJson countryJson) {
+		final var countryEntry = new HashMap<String, Hop>();
 		final var me = countryJson.cca3();
-		countryEntry.put(me, me);
-		countryEntry.putAll(
-				countryJson.borders().stream().collect(Collectors.toMap(Function.identity(), Function.identity())));
+		countryEntry.put(me, new Hop(me, 0));
+		countryEntry.putAll(countryJson.borders().stream()
+				.collect(Collectors.toMap(Function.identity(), neighbor -> new Hop(neighbor, 1))));
 		return countryEntry;
 	}
 	private URL selectDataSource() {
