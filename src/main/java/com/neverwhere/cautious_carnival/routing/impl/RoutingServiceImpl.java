@@ -29,7 +29,7 @@ public class RoutingServiceImpl implements RoutingService {
 			throw new CautiousCarnivalException(ErrorType.UNKNOWN_DESTINATION_COUNTRY_CODE);
 		}
 		if (!startCountryRoutes.containsKey(destinationCountryCode)) {
-			throw new CautiousCarnivalException(ErrorType.UNKNOWN_DESTINATION_COUNTRY_CODE);
+			throw new CautiousCarnivalException(ErrorType.ROUTE_UNAVAILABLE);
 		}
 
 		final var builder = Stream.<String>builder();
