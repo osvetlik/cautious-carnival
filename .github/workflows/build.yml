@@ -3,7 +3,9 @@ name: Build container image
 on:
   push:
     branches:
-      - develop
+    - develop
+    tags:
+    - 'v*'
   pull_request:
   workflow_dispatch:
 
