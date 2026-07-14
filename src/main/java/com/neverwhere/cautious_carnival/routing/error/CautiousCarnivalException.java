@@ -16,7 +16,8 @@ public class CautiousCarnivalException extends RuntimeException {
 	public enum ErrorType {
 		UNKNOWN_ORIGIN_COUNTRY_CODE(HttpStatus.NOT_FOUND),
 		UNKNOWN_DESTINATION_COUNTRY_CODE(HttpStatus.NOT_FOUND),
-		ROUTE_UNAVAILABLE(HttpStatus.BAD_REQUEST);
+		ROUTE_UNAVAILABLE(HttpStatus.BAD_REQUEST),
+		DATA_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE);
 
 		private final HttpStatus httpStatus;
 	}

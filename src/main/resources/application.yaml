@@ -24,3 +24,6 @@ management:
           include:
           - readinessState
           - routingData
+logging:
+  level:
+    com.neverwhere.cautious_carnival: ${APP_LOG_LEVEL:INFO}

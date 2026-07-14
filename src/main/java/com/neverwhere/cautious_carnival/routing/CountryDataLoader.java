@@ -16,6 +16,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StopWatch;
 
 import com.neverwhere.cautious_carnival.config.AppConfigurationProperties;
 import com.neverwhere.cautious_carnival.config.AppConfigurationProperties.DataSourceType;
@@ -44,17 +45,31 @@ class CountryDataLoader {
 			ApplicationReadyEvent.class,
 	})
 	void tryLoading() {
+		log.info("Acquiring routing data...");
+		final var sw = new StopWatch();
+		sw.start();
+
 		try {
 			final var routingData = loadRoutingData();
 			routingDataHolder.setRoutingData(routingData);
-			log.info("Sanity check: BRA -> {}", routingData.get("BRA"));
-			log.info("Sanity check: CZE -> {}", routingData.get("CZE"));
-			log.info("Sanity check: NOR -> ITA: {}", routingData.get("NOR").get("ITA"));
-			log.info("Sanity check: RUS -> ITA: {}", routingData.get("RUS").get("ITA"));
-			log.info("Sanity check: POL -> ITA: {}", routingData.get("POL").get("ITA"));
-			log.info("Sanity check: DEU -> ITA: {}", routingData.get("DEU").get("ITA"));
-			log.info("Sanity check: AUT -> ITA: {}", routingData.get("AUT").get("ITA"));
-			log.info("Sanity check: NOR -> VNM: {}", routingData.get("NOR").get("VNM"));
+			sw.stop();
+			final var timePassed = sw.getTotalTimeMillis();
+			log.debug("Sanity check: BRA -> {}", routingData.get("BRA"));
+			log.debug("Sanity check: CZE -> {}", routingData.get("CZE"));
+			log.debug("Sanity check: NOR -> ITA: {}", routingData.get("NOR").get("ITA"));
+			log.debug("Sanity check: RUS -> ITA: {}", routingData.get("RUS").get("ITA"));
+			log.debug("Sanity check: POL -> ITA: {}", routingData.get("POL").get("ITA"));
+			log.debug("Sanity check: DEU -> ITA: {}", routingData.get("DEU").get("ITA"));
+			log.debug("Sanity check: AUT -> ITA: {}", routingData.get("AUT").get("ITA"));
+			log.debug("Sanity check: NOR -> VNM: {}", routingData.get("NOR").get("VNM"));
+			log.info("Loading and parsing took {} ms.", timePassed);
+			if (log.isInfoEnabled()) {
+				final var recordsPresent = routingData.values().stream()
+						.mapToLong(Map::size)
+						.sum();
+				log.info("Next-hop map contains {} records.", recordsPresent);
+			}
+			log.info("Success, resuming operation.");
 		}
 		catch (Exception e) {
 			// TODO: terminate on certain exceptions, sometimes we know retries won't help.
@@ -66,9 +81,11 @@ class CountryDataLoader {
 	private Map<String, Map<String, String>> loadRoutingData() throws IOException {
 		final var dataSourceUrl = selectDataSource();
 
+		log.info("Loading data from source.");
 		try (final var inputStream = dataSourceUrl.openStream()) {
 			final var loaded = jsonMapper.readValue(inputStream, new TypeReference<List<CountryJson>>() {});
-			log.info("Loaded:\n{}", loaded);
+			log.debug("Loaded:\n{}", loaded);
+			log.info("Successfully loaded {} entries, parsing.", loaded.size());
 			return parseRoutingData(loaded);
 		}
 
@@ -79,6 +96,8 @@ class CountryDataLoader {
 				.collect(Collectors.toMap(CountryJson::cca3, this::initCountryEntry));
 		final var remainingCountries = new ArrayList<>(workingDataMap.keySet());
 
+		// We have to keep all the countries after the first pass, some changes might
+		// not have propagated and certain records would be prematurely removed as finished.
 		boolean firstPass = true;
 
 		while (!remainingCountries.isEmpty()) {
@@ -87,11 +106,11 @@ class CountryDataLoader {
 					.toList();
 			if (!firstPass) {
 				remainingCountries.removeAll(noNewHops);
-				log.info("Removing {}, remaining: {}", noNewHops, remainingCountries);
+				log.debug("Removing {}, remaining: {}", noNewHops, remainingCountries);
 			}
 			else {
 				firstPass = false;
-				log.info("First pass, not removing any countries yet, remaining: {}", remainingCountries);
+				log.debug("First pass, not removing any countries yet, remaining: {}", remainingCountries);
 			}
 		}
 
@@ -107,7 +126,7 @@ class CountryDataLoader {
 				.map(Hop::code)
 				.filter(Predicate.not(me::equals))
 				.collect(Collectors.toSet());
-		log.info("Processing my: {}\nneighbors {} ", me, neighbors);
+		log.debug("Processing my: {}\nneighbors {} ", me, neighbors);
 		return neighbors.stream()
 				.map(neighbor -> addNeighborsHops(me, myHops, neighbor, routingData.get(neighbor)))
 				.reduce(false, (a, b) -> a || b);
@@ -115,7 +134,7 @@ class CountryDataLoader {
 
 	private boolean addNeighborsHops(String me, Map<String, Hop> myHops, String neighbor,
 			Map<String, Hop> neighborsHops) {
-		log.info("Testing my hops\n{}\nagainst neighbor {} hops\n{}", myHops, neighbor, neighborsHops);
+		log.debug("Testing my hops\n{}\nagainst neighbor {} hops\n{}", myHops, neighbor, neighborsHops);
 		final var newHops = neighborsHops.entrySet().stream()
 				.filter(newHopEntry -> !neighbor.equals(newHopEntry.getKey()))
 				.filter(newHopEntry -> !me.equals(newHopEntry.getKey()))
@@ -127,7 +146,7 @@ class CountryDataLoader {
 		final var bestHops = newHops.stream()
 				.collect(
 						Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a.distance() < b.distance() ? a : b));
-		log.info("Adding new hops {}", bestHops);
+		log.debug("Adding new hops {}", bestHops);
 		bestHops.entrySet().forEach(e -> myHops.put(e.getKey(), new Hop(neighbor, e.getValue().distance() + 1)));
 		return true;
 	}
@@ -135,7 +154,7 @@ class CountryDataLoader {
 	private boolean isBetterHop(Map<String, Hop> myHops, Map.Entry<String, Hop> neighborHopEntry) {
 		final var newHop = neighborHopEntry.getValue();
 		final var existingHop = myHops.get(neighborHopEntry.getKey());
-		log.info("Comparing new {} hop {} with mine {}", neighborHopEntry.getKey(), newHop, existingHop);
+		log.debug("Comparing new {} hop {} with mine {}", neighborHopEntry.getKey(), newHop, existingHop);
 		if (existingHop == null) {
 			return true;
 		}

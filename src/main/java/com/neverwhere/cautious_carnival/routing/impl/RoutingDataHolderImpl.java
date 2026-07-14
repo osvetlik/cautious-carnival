@@ -6,6 +6,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.stereotype.Component;
 
 import com.neverwhere.cautious_carnival.routing.RoutingDataHolder;
+import com.neverwhere.cautious_carnival.routing.error.CautiousCarnivalException;
+import com.neverwhere.cautious_carnival.routing.error.CautiousCarnivalException.ErrorType;
 
 @Component
 public class RoutingDataHolderImpl implements RoutingDataHolder {
@@ -28,7 +30,7 @@ public class RoutingDataHolderImpl implements RoutingDataHolder {
 	public Map<String, Map<String, String>> getRoutingData() {
 		final var routingData = routingDataRef.get();
 		if (routingData == null) {
-			throw new IllegalStateException("Routing data is not yet loaded.");
+			throw new CautiousCarnivalException(ErrorType.DATA_UNAVAILABLE);
 		}
 		return routingData;
 	}
