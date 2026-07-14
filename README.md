@@ -55,3 +55,6 @@ This has several advantages:
 ## Possible improvements
 * Make loaded data imutable.
 * Current next-hop map creation relies on data being consistent, there could be more sanity checking on load.
+* Fill `ProblemDetail` better.
+* Handle validation errors on incorrect inputs with grace.
+
