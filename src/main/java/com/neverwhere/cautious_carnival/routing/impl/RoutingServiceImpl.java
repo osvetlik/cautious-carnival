@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
+import org.springframework.util.StopWatch;
 
 import com.neverwhere.cautious_carnival.routing.RoutingDataHolder;
 import com.neverwhere.cautious_carnival.routing.RoutingService;
@@ -11,15 +12,19 @@ import com.neverwhere.cautious_carnival.routing.error.CautiousCarnivalException;
 import com.neverwhere.cautious_carnival.routing.error.CautiousCarnivalException.ErrorType;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RoutingServiceImpl implements RoutingService {
 
 	private final RoutingDataHolder routingDataHolder;
 
 	@Override
 	public List<String> getRoute(String originCountryCode, String destinationCountryCode) {
+		final var sw = new StopWatch();
+		sw.start();
 		final var routingData = routingDataHolder.getRoutingData();
 		final var startCountryRoutes = routingData.get(originCountryCode);
 		if (startCountryRoutes == null) {
@@ -39,6 +44,9 @@ public class RoutingServiceImpl implements RoutingService {
 			nextCountryCode = routingData.get(nextCountryCode).get(destinationCountryCode);
 			builder.add(nextCountryCode);
 		}
+		sw.stop();
+		log.info("Search from {} to {} took {} µs.", originCountryCode, destinationCountryCode,
+				sw.getTotalTimeNanos() / 1000L);
 		return builder.build().toList();
 	}
 
