@@ -81,7 +81,7 @@ class CountryDataLoader {
 	private Map<String, Map<String, String>> loadRoutingData() throws IOException {
 		final var dataSourceUrl = selectDataSource();
 
-		log.info("Loading data from source.");
+		log.info("Loading data from source:\n{}.", dataSourceUrl);
 		try (final var inputStream = dataSourceUrl.openStream()) {
 			final var loaded = jsonMapper.readValue(inputStream, new TypeReference<List<CountryJson>>() {});
 			log.debug("Loaded:\n{}", loaded);
@@ -96,22 +96,14 @@ class CountryDataLoader {
 				.collect(Collectors.toMap(CountryJson::cca3, this::initCountryEntry));
 		final var remainingCountries = new ArrayList<>(workingDataMap.keySet());
 
-		// We have to keep all the countries after the first pass, some changes might
-		// not have propagated and certain records would be prematurely removed as finished.
-		boolean firstPass = true;
+		// We run the propagation as long as changes are generated. We can afford this since
+		// only new or shorter paths generate changes so there is no danger of an endless loop.
+		boolean changesApplied = true;
 
-		while (!remainingCountries.isEmpty()) {
-			final var noNewHops = remainingCountries.stream()
-					.filter(me -> !processAllNeighbors(me, workingDataMap))
-					.toList();
-			if (!firstPass) {
-				remainingCountries.removeAll(noNewHops);
-				log.debug("Removing {}, remaining: {}", noNewHops, remainingCountries);
-			}
-			else {
-				firstPass = false;
-				log.debug("First pass, not removing any countries yet, remaining: {}", remainingCountries);
-			}
+		while (changesApplied) {
+			changesApplied = remainingCountries.stream()
+					.map(me -> processAllNeighbors(me, workingDataMap))
+					.reduce(false, (a, b) -> a || b);
 		}
 
 		return workingDataMap.entrySet().stream().collect(
@@ -119,7 +111,8 @@ class CountryDataLoader {
 						.toMap(Map.Entry::getKey, hopEntry -> hopEntry.getValue().code()))));
 	}
 
-
+	/// Propagates currently existing hops of my neighbors to my table.
+	/// @return True when changes were made, false otherwise.
 	private boolean processAllNeighbors(String me, Map<String, Map<String, Hop>> routingData) {
 		final var myHops = routingData.get(me);
 		final var neighbors = myHops.values().stream()
@@ -132,6 +125,9 @@ class CountryDataLoader {
 				.reduce(false, (a, b) -> a || b);
 	}
 
+	/// Compares a single neighbor's next-hop map with mine, if new or shorter hops are available,
+	/// I adopt them.
+	/// @return True when changes are made, false otherwise.
 	private boolean addNeighborsHops(String me, Map<String, Hop> myHops, String neighbor,
 			Map<String, Hop> neighborsHops) {
 		log.debug("Testing my hops\n{}\nagainst neighbor {} hops\n{}", myHops, neighbor, neighborsHops);
@@ -151,6 +147,8 @@ class CountryDataLoader {
 		return true;
 	}
 
+	/// Decide whethere a single hop from my neighbor's map is a better match for me or not.
+	/// @return True if the hop should be adopted, false otherwise.
 	private boolean isBetterHop(Map<String, Hop> myHops, Map.Entry<String, Hop> neighborHopEntry) {
 		final var newHop = neighborHopEntry.getValue();
 		final var existingHop = myHops.get(neighborHopEntry.getKey());
